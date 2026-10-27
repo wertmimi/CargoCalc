@@ -1,0 +1,152 @@
+@page
+@model CargoCalc.Pages.IndexModel
+@{
+    ViewData["Title"] = "Главная";
+}
+<section class="hero">
+    <div>
+        <p class="eyebrow">УПРАВЛЕНИЕ ПЕРЕВОЗКАМИ</p>
+        <h1>Расчёт грузоперевозок</h1>
+        <p class="muted">Создавайте заявки, храните справочники и сравнивайте предложения перевозчиков по цене и сроку доставки.</p>
+    </div>
+    <div class="hero-mark">CC</div>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.Message))
+{
+    <div class="notice">@Model.Message</div>
+}
+
+<div class="stats">
+    <div class="stat"><span>Заказчики</span><strong>@Model.Customers.Count</strong></div>
+    <div class="stat"><span>Перевозчики</span><strong>@Model.Carriers.Count</strong></div>
+    <div class="stat"><span>Заявки</span><strong>@Model.Shipments.Count</strong></div>
+    <div class="stat"><span>Предложения</span><strong>@Model.TotalOffers</strong></div>
+</div>
+
+<div class="columns">
+    <section class="panel">
+        <div class="panel-head"><h2>Новая заявка</h2></div>
+        <form method="post" asp-page-handler="CreateShipment" class="form-grid">
+            <label>Заказчик
+                <select asp-for="NewShipment.CustomerId" required>
+                    <option value="">Выберите заказчика</option>
+                    @foreach (var customer in Model.Customers)
+                    {
+                        <option value="@customer.Id">@customer.Name</option>
+                    }
+                </select>
+            </label>
+            <label>Город отправления
+                <input asp-for="NewShipment.FromCity" placeholder="Например, Екатеринбург" required />
+            </label>
+            <label>Город назначения
+                <input asp-for="NewShipment.ToCity" placeholder="Например, Новосибирск" required />
+            </label>
+            <label>Описание груза
+                <input asp-for="NewShipment.CargoDescription" placeholder="Например, коробки с оборудованием" required />
+            </label>
+            <label>Вес, кг
+                <input asp-for="NewShipment.WeightKg" type="number" min="0.1" step="0.1" required />
+            </label>
+            <button class="button" type="submit">Создать заявку</button>
+        </form>
+    </section>
+
+    <section class="panel">
+        <div class="panel-head"><h2>Добавить заказчика</h2></div>
+        <form method="post" asp-page-handler="AddCustomer" class="form-grid">
+            <label>Название / ФИО
+                <input asp-for="NewCustomer.Name" required placeholder="Название заказчика" />
+            </label>
+            <label>Телефон
+                <input asp-for="NewCustomer.Phone" placeholder="+7 ..." />
+            </label>
+            <button class="button secondary" type="submit">Добавить заказчика</button>
+        </form>
+        <div class="mini-list">
+            @foreach (var customer in Model.Customers)
+            {
+            <div>
+                <span>@customer.Name</span>
+                <small>@customer.Phone</small>
+                <form method="post"
+                      asp-page-handler="DeleteCustomer"
+                      asp-route-id="@customer.Id"
+                      onsubmit="return confirm('Удалить этого заказчика?');">
+                    <button class="button" type="submit">Удалить</button>
+                </form>
+            </div>
+            }
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-head"><h2>Добавить перевозчика</h2></div>
+        <form method="post" asp-page-handler="AddCarrier" class="form-grid">
+            <label>Название перевозчика
+                <input asp-for="NewCarrier.Name" required placeholder="Название компании" />
+            </label>
+            <label>Телефон
+                <input asp-for="NewCarrier.Phone" placeholder="+7 ..." />
+            </label>
+            <button class="button secondary" type="submit">Добавить перевозчика</button>
+        </form>
+        <div class="mini-list">
+            @foreach (var carrier in Model.Carriers)
+            {
+            <div>
+                <span>@carrier.Name</span>
+                <small>@carrier.Phone</small>
+                <form method="post"
+                      asp-page-handler="DeleteCarrier"
+                      asp-route-id="@carrier.Id"
+                      onsubmit="return confirm('Удалить этого перевозчика?');">
+                    <button class="button" type="submit">Удалить</button>
+                </form>
+            </div>
+            }
+        </div>
+    </section>
+</div>
+
+<section class="panel">
+    <div class="panel-head">
+        <div><h2>Заявки на перевозку</h2><p class="muted">Откройте заявку, чтобы добавить предложения и сравнить варианты.</p></div>
+    </div>
+    @if (Model.Shipments.Count == 0)
+    {
+        <p class="empty">Пока нет заявок. Создайте первую с помощью формы выше.</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Маршрут</th><th>Заказчик</th><th>Груз</th><th>Вес</th><th>Предложений</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var shipment in Model.Shipments)
+                {
+                    <tr>
+                        <td><strong>@shipment.FromCity → @shipment.ToCity</strong><small>@shipment.CreatedAt.ToString("dd.MM.yyyy")</small></td>
+                        <td>@shipment.Customer?.Name</td>
+                        <td>@shipment.CargoDescription</td>
+                        <td>@shipment.WeightKg.ToString("0.##") кг</td>
+                        <td><span class="pill">@shipment.Offers.Count</span></td>
+                            <td>
+                                <a class="text-link" asp-page="/Shipment" asp-route-id="@shipment.Id">Открыть →</a>
+
+                                <form method="post"
+                                      asp-page-handler="DeleteShipment"
+                                      asp-route-id="@shipment.Id"
+                                      onsubmit="return confirm('Точно удалить эту заявку и все её предложения?');"
+                                      style="display:inline; margin-left:10px;">
+                                    <button type="submit" class="button">Удалить</button>
+                                </form>
+                            </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

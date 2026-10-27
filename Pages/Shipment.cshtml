@@ -1,0 +1,120 @@
+@page "{id:int}"
+@model CargoCalc.Pages.ShipmentModel
+@{
+    ViewData["Title"] = "Заявка";
+}
+<a class="back-link" asp-page="/Index">← На главную</a>
+
+@if (Model.Shipment is null)
+{
+    <section class="panel"><h1>Заявка не найдена</h1><p>Вернитесь на главную и выберите существующую заявку.</p></section>
+}
+else
+{
+    <section class="hero compact">
+        <div>
+            <p class="eyebrow">ЗАЯВКА №@Model.Shipment.Id</p>
+            <h1>@Model.Shipment.FromCity <span class="arrow">→</span> @Model.Shipment.ToCity</h1>
+            <p class="muted">@Model.Shipment.CargoDescription · @Model.Shipment.WeightKg.ToString("0.##") кг · Заказчик: @Model.Shipment.Customer?.Name</p>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(Model.Message))
+    {
+        <div class="notice">@Model.Message</div>
+    }
+
+    <div class="columns">
+        <section class="panel">
+            <h2>Добавить предложение</h2>
+            @if (Model.Carriers.Count == 0)
+            {
+                <p class="empty">Сначала добавьте перевозчика на главной странице.</p>
+            }
+            else
+            {
+                <form method="post" class="form-grid">
+                    <label>Перевозчик
+                        <select asp-for="Input.CarrierId" required>
+                            <option value="">Выберите перевозчика</option>
+                            @foreach (var carrier in Model.Carriers)
+                            {
+                                <option value="@carrier.Id">@carrier.Name</option>
+                            }
+                        </select>
+                    </label>
+                    <label>Стоимость, руб.
+                        <input asp-for="Input.Price" type="number" min="1" step="0.01" required />
+                    </label>
+                    <label>Время доставки, часов
+                        <input asp-for="Input.DeliveryHours" type="number" min="0.1" step="0.1" required />
+                    </label>
+                    <button class="button" type="submit">Сохранить предложение</button>
+                </form>
+            }
+        </section>
+        <section class="panel">
+            <h2>Как считается оптимум?</h2>
+            <p class="muted">Сначала цена и время нормализуются относительно предложений в этой заявке. Оптимальный вариант — минимальное среднее двух показателей. Цена и срок имеют одинаковый вес.</p>
+            <div class="formula">Оптимум = (доля цены + доля времени) / 2</div>
+        </section>
+    </div>
+
+    <section class="panel">
+        <div class="panel-head"><div><h2>Сравнение предложений</h2><p class="muted">Все суммы и сроки указаны перевозчиками.</p></div></div>
+        @if (Model.Offers.Count == 0)
+        {
+            <p class="empty">Предложений пока нет — добавьте первое с помощью формы.</p>
+        }
+        else
+        {
+            <div class="winners">
+                @if (Model.Cheapest is not null)
+                {
+                    <div class="winner"><span>Самый дешёвый</span><strong>@Model.Cheapest.Carrier?.Name</strong><b>@Model.Cheapest.Price.ToString("N2") ₽</b></div>
+                }
+                @if (Model.Fastest is not null)
+                {
+                    <div class="winner"><span>Самый быстрый</span><strong>@Model.Fastest.Carrier?.Name</strong><b>@Model.Fastest.DeliveryHours.ToString("0.##") ч</b></div>
+                }
+                @if (Model.Optimal is not null)
+                {
+                    <div class="winner featured"><span>Лучший баланс</span><strong>@Model.Optimal.Carrier?.Name</strong><b>@Model.Optimal.Price.ToString("N2") ₽ · @Model.Optimal.DeliveryHours.ToString("0.##") ч</b></div>
+                }
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Перевозчик</th>
+                            <th>Стоимость</th>
+                            <th>Доставка</th>
+                            <th>Оценка баланса</th>
+                            <th>Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var offer in Model.Offers)
+                    {
+                        <tr>
+                            <td><strong>@offer.Carrier?.Name</strong></td>
+                            <td>@offer.Price.ToString("N2") ₽</td>
+                            <td>@offer.DeliveryHours.ToString("0.##") ч</td>
+                            <td><span class="pill">@Model.Score(offer).ToString("P1")</span></td>
+                            <td>
+                                    <form method="post"
+                                          asp-page-handler="DeleteOffer"
+                                          asp-route-id="@Model.Shipment.Id"
+                                          asp-route-offerId="@offer.Id"
+                                          onsubmit="return confirm('Удалить это предложение?');">
+                                        <button class="button" type="submit">Удалить</button>
+                                    </form>
+                                </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+}
